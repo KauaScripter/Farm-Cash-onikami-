@@ -1,0 +1,79 @@
+            local TweenService = game:GetService("TweenService")
+            local Players = game:GetService("Players")
+
+            local function teleportWithScript(targetPosition, scriptArgs, elevation, moveDuration, maxHeight, onComplete)
+                local player = Players.LocalPlayer
+                local character = player.Character
+                local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+                local humanoid = character and character:FindFirstChild("Humanoid")
+
+                if humanoidRootPart and humanoid then
+                    local currentPosition = humanoidRootPart.Position
+                    local elevatedPosition = currentPosition + Vector3.new(0, elevation, 0)
+
+                    -- Limitar a elevação à altura máxima para o Waypoint
+                    if elevation > maxHeight then
+                        elevation = maxHeight
+                    end
+
+                    local elevateTweenInfo = TweenInfo.new(1, Enum.EasingStyle.Linear)  -- Ajuste para 1 segundo de elevação
+                    local elevateTween = TweenService:Create(humanoidRootPart, elevateTweenInfo, {CFrame = CFrame.new(elevatedPosition)})
+                    elevateTween:Play()
+                    elevateTween.Completed:Wait()
+
+                    local finalPosition = Vector3.new(targetPosition.X, elevatedPosition.Y, targetPosition.Z)
+                    local moveTweenInfo = TweenInfo.new(moveDuration, Enum.EasingStyle.Linear)  -- Manter a duração do movimento
+                    local moveTween = TweenService:Create(humanoidRootPart, moveTweenInfo, {CFrame = CFrame.new(finalPosition)})
+                    moveTween:Play()
+                    moveTween.Completed:Wait()
+
+                    local args = {
+                        [1] = scriptArgs
+                    }
+                    local success, errorMessage = pcall(function()
+                        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GiverQuest"):FireServer(unpack(args))
+                    end)
+                    
+                    if not success then
+                        warn("Erro ao executar script:", errorMessage)
+                    end
+
+                    -- Descer um pouco mais rápido após completar a missão
+                    local descendTweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Linear)  -- Ajuste para 0.5 segundos de descida
+                    local descendTween = TweenService:Create(humanoidRootPart, descendTweenInfo, {CFrame = CFrame.new(targetPosition)})
+                    descendTween:Play()
+                    descendTween.Completed:Wait()
+
+                    if onComplete then
+                        onComplete()
+                    end
+                end
+            end
+
+            -- Definindo as posições dos waypoints e parâmetros
+            local waypoint3 = Vector3.new(1048, 1807, -2322)
+            local waypoint4 = Vector3.new(-224, 1769, -1879)
+            local moveDuration = 11  -- Alterado para 11 segundos
+            local maxHeightWay3 = 30  -- Altura máxima para o Waypoint 3
+            local maxHeightWay4 = 25  -- Altura máxima para o Waypoint 4
+
+            -- Função para executar os waypoints em loop
+            local function loopWaypoints()
+                while true do
+                   teleportWithScript(waypoint3, "LetterQuest", maxHeightWay3, moveDuration, maxHeightWay3, function()
+                        teleportWithScript(waypoint4, "LetterQuestGuy", maxHeightWay4, moveDuration, maxHeightWay4, function()
+                            -- Reduzindo o tempo de espera entre teletransportes para 0.5 segundos
+                            wait(0.5)
+                        end)
+                    end)
+                    
+                    -- Reduzindo o tempo de espera entre teletransportes para 0.5 segundos
+                    wait(0.5)
+                end
+            end
+
+            -- Iniciando o loop em uma nova thread para não bloquear o script principal
+            spawn(loopWaypoints)
+        end
+    end
+})
